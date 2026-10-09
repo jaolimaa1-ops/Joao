@@ -1,0 +1,12 @@
+import {test, before, after} from 'node:test';
+import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
+let child;const root='http://127.0.0.1:3107';
+before(async()=>{child=spawn(process.execPath,['server.js'],{env:{...process.env,PORT:'3107',APP_URL:root,ML_CLIENT_ID:'',ML_CLIENT_SECRET:'',ML_REDIRECT_URI:''}});await new Promise((resolve,reject)=>{child.stdout.once('data',resolve);child.once('error',reject);child.once('exit',c=>reject(Error(`Servidor saiu: ${c}`)));});});
+after(()=>child?.kill());
+test('serve interface e scripts',async()=>{for(const path of ['/','/app.js','/style.css']){const r=await fetch(root+path);assert.equal(r.status,200);assert.ok((await r.text()).length>100);assert.ok(r.headers.get('content-security-policy'));}});
+test('informa configuração ausente sem expor segredos',async()=>{const r=await fetch(root+'/api/status');assert.deepEqual(await r.json(),{configured:false,connected:false});});
+test('protege dados reais sem sessão',async()=>{assert.equal((await fetch(root+'/api/data')).status,401);});
+test('não inicia OAuth sem configuração',async()=>{assert.equal((await fetch(root+'/auth/connect')).status,503);});
+test('rejeita callback sem estado e logout de outra origem',async()=>{assert.equal((await fetch(root+'/auth/callback?code=x&state=x')).status,400);assert.equal((await fetch(root+'/api/disconnect',{method:'POST',headers:{origin:'https://outro.example'}})).status,403);});
+test('não permite acesso a arquivos privados',async()=>{assert.equal((await fetch(root+'/.env')).status,404);assert.equal((await fetch(root+'/server.js')).status,404);});

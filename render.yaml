@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: orbita-mercado-livre
+    runtime: node
+    plan: free
+    buildCommand: npm test
+    startCommand: npm start
+    healthCheckPath: /api/status
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_VERSION
+        value: 24.19.0
